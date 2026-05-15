@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>نظام إدارة الإجازات المرضية | Enterprise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+/* ============== CSS VARIABLES & THEME ============== */
+:root{
+  --primary:#0d9488;
+  --primary-dark:#0f766e;
+  --primary-light:#14b8a6;
+  --accent:#f59e0b;
+  --bg:#f1f5f9;
+  --bg-elevated:#ffffff;
+  --bg-sidebar:#0f172a;
+  --bg-sidebar-hover:#1e293b;
+  --text:#0f172a;
+  --text-muted:#64748b;
+  --text-on-dark:#e2e8f0;
+  --border:#e2e8f0;
+  --border-strong:#cbd5e1;
+  --success:#10b981;
+  --danger:#ef4444;
+  --warning:#f59e0b;
+  --info:#3b82f6;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --shadow:0 4px 6px -1px rgba(0,0,0,.08),0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.05);
+  --shadow-xl:0 25px 50px -12px rgba(0,0,0,.25);
+  --radius:12px;
+  --radius-sm:8px;
+  --radius-lg:16px;
+  --sidebar-w:260px;
+  --header-h:64px;
+  --transition:.25s cubic-bezier(.4,0,.2,1);
+}
+[data-theme="dark"]{
+  --bg:#0b1220;
+  --bg-elevated:#111827;
+  --bg-sidebar:#020617;
+  --bg-sidebar-hover:#0f172a;
+  --text:#e2e8f0;
+  --text-muted:#94a3b8;
+  --border:#1e293b;
+  --border-strong:#334155;
+  --shadow:0 4px 6px -1px rgba(0,0,0,.4);
+  --shadow-lg:0 10px 25px -5px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Cairo','Tajawal',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  font-size:14px;
+  line-height:1.6;
+  overflow:hidden;
+  transition:background var(--transition),color var(--transition);
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ============== LOGIN ============== */
+.login-wrap{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#0d9488 0%,#0f172a 100%);
+  z-index:1000;padding:20px;
+}
+.login-card{
+  background:var(--bg-elevated);border-radius:var(--radius-lg);
+  padding:40px;width:100%;max-width:420px;box-shadow:var(--shadow-xl);
+  backdrop-filter:blur(20px);
+}
+.login-logo{
+  width:72px;height:72px;border-radius:18px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 20px;font-size:36px;color:#fff;box-shadow:var(--shadow-lg);
+}
+.login-card h1{text-align:center;font-size:24px;margin-bottom:6px}
+.login-card p.sub{text-align:center;color:var(--text-muted);margin-bottom:28px;font-size:13px}
+.login-card .field{margin-bottom:16px}
+.login-card label{display:block;margin-bottom:6px;font-weight:600;font-size:13px}
+.login-card input{
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);background:var(--bg);transition:var(--transition);
+}
+.login-card input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.15)}
+.login-card .btn-login{
+  width:100%;padding:13px;background:var(--primary);color:#fff;border-radius:var(--radius-sm);
+  font-weight:700;margin-top:8px;transition:var(--transition);font-size:15px;
+}
+.login-card .btn-login:hover{background:var(--primary-dark);transform:translateY(-1px)}
+.login-hint{margin-top:18px;padding:12px;background:rgba(13,148,136,.08);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);text-align:center}
+
+/* ============== APP LAYOUT ============== */
+.app{display:none;height:100vh;width:100vw}
+.app.active{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--header-h) 1fr}
+
+/* SIDEBAR */
+.sidebar{
+  grid-row:1/3;background:var(--bg-sidebar);color:var(--text-on-dark);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:transform var(--transition);
+}
+.sidebar-header{
+  padding:20px;border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;gap:12px;
+}
+.sidebar-logo{
+  width:42px;height:42px;border-radius:10px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+}
+.sidebar-title{font-size:15px;font-weight:700;line-height:1.3}
+.sidebar-title small{display:block;font-size:11px;color:#94a3b8;font-weight:400}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 10px}
+.sidebar-nav .nav-section{font-size:11px;color:#64748b;text-transform:uppercase;padding:14px 12px 8px;letter-spacing:.5px}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;
+  color:#cbd5e1;cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;
+  margin-bottom:2px;position:relative;
+}
+.nav-item:hover{background:var(--bg-sidebar-hover);color:#fff}
+.nav-item.active{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 4px 12px rgba(13,148,136,.3)}
+.nav-item .icon{width:20px;text-align:center;font-size:16px}
+.nav-item .badge{margin-inline-start:auto;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px;font-size:11px}
+.sidebar-footer{padding:14px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#64748b}
+.db-status{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,.04)}
+.db-dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* HEADER */
+.header{
+  background:var(--bg-elevated);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+  box-shadow:var(--shadow-sm);position:relative;z-index:50;
+}
+.header .menu-btn{display:none;font-size:22px;color:var(--text)}
+.page-title{font-size:18px;font-weight:700;flex:1}
+.header-search{
+  flex:0 1 360px;position:relative;display:flex;align-items:center;
+}
+.header-search input{
+  width:100%;padding:9px 38px 9px 14px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg);transition:var(--transition);
+}
+.header-search input:focus{outline:none;border-color:var(--primary);background:var(--bg-elevated)}
+.header-search .ico{position:absolute;inset-inline-end:12px;color:var(--text-muted)}
+.header-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{
+  width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);transition:var(--transition);font-size:16px;
+}
+.icon-btn:hover{background:var(--bg);color:var(--primary)}
+.user-chip{
+  display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;border-radius:30px;
+  background:var(--bg);transition:var(--transition);cursor:pointer;
+}
+.user-chip:hover{background:var(--border)}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.user-name{font-size:13px;font-weight:600}
+.user-role{font-size:11px;color:var(--text-muted)}
+
+/* MAIN */
+.main{overflow-y:auto;padding:24px;background:var(--bg)}
+.page{display:none;animation:fadeIn .3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS */
+.card{
+  background:var(--bg-elevated);border-radius:var(--radius);
+  border:1px solid var(--border);box-shadow:var(--shadow-sm);
+  margin-bottom:20px;overflow:hidden;
+}
+.card-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px}
+.card-body{padding:22px}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{
+  background:var(--bg-elevated);border-radius:var(--radius);padding:20px;
+  border:1px solid var(--border);position:relative;overflow:hidden;
+  transition:var(--transition);box-shadow:var(--shadow-sm);
+}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.stat-card::before{content:"";position:absolute;top:0;inset-inline-start:0;width:4px;height:100%;background:var(--primary)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.warning::before{background:var(--warning)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-card.info::before{background:var(--info)}
+.stat-icon{
+  width:48px;height:48px;border-radius:12px;background:rgba(13,148,136,.1);
+  color:var(--primary);display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:12px;
+}
+.stat-card.success .stat-icon{background:rgba(16,185,129,.1);color:var(--success)}
+.stat-card.warning .stat-icon{background:rgba(245,158,11,.1);color:var(--warning)}
+.stat-card.danger .stat-icon{background:rgba(239,68,68,.1);color:var(--danger)}
+.stat-card.info .stat-icon{background:rgba(59,130,246,.1);color:var(--info)}
+.stat-label{font-size:12.5px;color:var(--text-muted);margin-bottom:4px;font-weight:600}
+.stat-value{font-size:28px;font-weight:800;line-height:1}
+.stat-trend{font-size:11px;color:var(--text-muted);margin-top:6px}
+
+/* CHARTS GRID */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.chart-box{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm)}
+.chart-box h3{font-size:14px;margin-bottom:14px;font-weight:700}
+.chart-wrap{position:relative;height:260px}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;
+  font-weight:600;font-size:13px;transition:var(--transition);
+  background:var(--bg);color:var(--text);border:1px solid var(--border);
+}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover{background:#dc2626}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-warning{background:var(--warning);color:#fff;border-color:var(--warning)}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn-icon{padding:8px;width:34px;height:34px;justify-content:center}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* TOOLBAR */
+.toolbar{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;
+  background:var(--bg-elevated);padding:14px;border-radius:var(--radius);border:1px solid var(--border);
+}
+.toolbar input,.toolbar select{
+  padding:8px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-elevated);transition:var(--transition);min-width:140px;
+}
+.toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--primary)}
+.toolbar .search{flex:1;min-width:220px;position:relative}
+.toolbar .search input{width:100%;padding-inline-start:36px}
+.toolbar .search .ico{position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-muted)}
+
+/* TABLE */
+.table-wrap{background:var(--bg-elevated);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-sm)}
+.table-scroll{overflow-x:auto;max-height:calc(100vh - 320px)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{position:sticky;top:0;background:var(--bg);z-index:5}
+th{
+  padding:12px 14px;text-align:start;font-weight:700;color:var(--text-muted);
+  font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;
+  border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;
+}
+th:hover{color:var(--primary)}
+th .sort-icon{font-size:9px;opacity:.5;margin-inline-start:4px}
+td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr{transition:var(--transition)}
+tbody tr:hover{background:var(--bg)}
+tbody tr.selected{background:rgba(13,148,136,.08)}
+.table-empty{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.table-empty .ico{font-size:48px;opacity:.3;margin-bottom:12px}
+
+/* BADGES */
+.badge{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;
+}
+.badge-success{background:rgba(16,185,129,.12);color:#059669}
+.badge-warning{background:rgba(245,158,11,.12);color:#d97706}
+.badge-danger{background:rgba(239,68,68,.12);color:#dc2626}
+.badge-info{background:rgba(59,130,246,.12);color:#2563eb}
+.badge-secondary{background:rgba(100,116,139,.12);color:#475569}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--border);background:var(--bg-elevated);flex-wrap:wrap;gap:10px}
+.pagination .info{font-size:12.5px;color:var(--text-muted)}
+.pagination .pages{display:flex;gap:4px}
+.pagination .pages button{
+  min-width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg-elevated);font-weight:600;transition:var(--transition);
+}
+.pagination .pages button:hover{border-color:var(--primary);color:var(--primary)}
+.pagination .pages button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pagination .pages button:disabled{opacity:.4;cursor:not-allowed}
+
+/* MODAL */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:200;padding:20px;
+  animation:fadeIn .2s;
+}
+.modal-backdrop.active{display:flex}
+.modal{
+  background:var(--bg-elevated);border-radius:var(--radius-lg);
+  width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;
+  box-shadow:var(--shadow-xl);animation:slideUp .3s;
+}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal.lg{max-width:960px}
+.modal.sm{max-width:480px}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px}
+.modal-close{font-size:22px;color:var(--text-muted);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--bg);color:var(--danger)}
+.modal-body{padding:22px;overflow-y:auto;flex:1}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.form-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.form-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.form-grid .full{grid-column:1/-1}
+.field-group{display:flex;flex-direction:column;gap:6px}
+.field-group label{font-size:12.5px;font-weight:600;color:var(--text)}
+.field-group label .req{color:var(--danger)}
+.field-group input,.field-group select,.field-group textarea{
+  padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;
+  background:var(--bg-elevated);transition:var(--transition);width:100%;
+}
+.field-group input:focus,.field-group select:focus,.field-group textarea:focus{
+  outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.12);
+}
+.field-group textarea{resize:vertical;min-height:80px;font-family:inherit}
+.field-hint{font-size:11px;color:var(--text-muted)}
+.field-error{font-size:11.5px;color:var(--danger)}
+
+/* DROPZONE */
+.dropzone{
+  border:2px dashed var(--border-strong);border-radius:var(--radius);padding:24px;
+  text-align:center;color:var(--text-muted);transition:var(--transition);cursor:pointer;
+}
+.dropzone:hover,.dropzone.drag{border-color:var(--primary);background:rgba(13,148,136,.04);color:var(--primary)}
+.dropzone .ico{font-size:32px;margin-bottom:8px}
+.files-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.file-chip{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;font-size:12.5px}
+.file-chip .ico{font-size:16px;color:var(--primary)}
+.file-chip .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-chip .size{color:var(--text-muted);font-size:11px}
+.file-chip .x{color:var(--danger);cursor:pointer;padding:2px 6px;border-radius:4px}
+.file-chip .x:hover{background:rgba(239,68,68,.1)}
+
+/* TOAST */
+.toast-wrap{position:fixed;top:80px;inset-inline-end:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:380px}
+.toast{
+  background:var(--bg-elevated);border-radius:10px;padding:14px 16px;
+  box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:12px;
+  border-inline-start:4px solid var(--primary);animation:slideInRight .3s;font-size:13px;
+}
+.toast.success{border-color:var(--success)}
+.toast.error{border-color:var(--danger)}
+.toast.warning{border-color:var(--warning)}
+.toast.info{border-color:var(--info)}
+.toast .ico{font-size:18px}
+.toast.success .ico{color:var(--success)}
+.toast.error .ico{color:var(--danger)}
+.toast.warning .ico{color:var(--warning)}
+.toast.info .ico{color:var(--info)}
+@keyframes slideInRight{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* CONTEXT MENU */
+.ctx-menu{position:fixed;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-xl);padding:6px;z-index:300;min-width:180px;display:none}
+.ctx-menu.active{display:block}
+.ctx-menu .item{padding:9px 12px;border-radius:6px;display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;transition:var(--transition)}
+.ctx-menu .item:hover{background:var(--bg)}
+.ctx-menu .item.danger{color:var(--danger)}
+.ctx-menu .sep{height:1px;background:var(--border);margin:4px 0}
+
+/* CHECKBOX */
+.chk{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
+
+/* FILE PREVIEW */
+.preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:10px}
+.preview-item{position:relative;border:1px solid var(--border);border-radius:8px;overflow:hidden;aspect-ratio:1;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;transition:var(--transition)}
+.preview-item:hover{border-color:var(--primary);transform:scale(1.03)}
+.preview-item img{width:100%;height:100%;object-fit:cover}
+.preview-item .file-ico{font-size:32px;color:var(--text-muted)}
+.preview-item .lbl{font-size:10px;padding:4px;background:rgba(0,0,0,.7);color:#fff;position:absolute;bottom:0;left:0;right:0;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;text-align:center}
+
+/* SETTINGS GRID */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-info h4{font-size:14px;margin-bottom:3px}
+.setting-info p{font-size:12px;color:var(--text-muted)}
+
+/* RESPONSIVE */
+@media(max-width:1024px){
+  .app.active{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:0;bottom:0;width:var(--sidebar-w);z-index:100;transform:translateX(100%)}
+  [dir="rtl"] .sidebar{transform:translateX(100%)}
+  .sidebar.open{transform:translateX(0)}
+  .header .menu-btn{display:flex}
+  .header-search{flex:1;min-width:0}
+  .user-name,.user-role{display:none}
+}
+@media(max-width:640px){
+  .main{padding:14px}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .stat-card{padding:14px}
+  .stat-value{font-size:22px}
+  .header{padding:0 12px;gap:8px}
+  .page-title{font-size:15px}
+  .form-grid.cols-3,.form-grid.cols-2{grid-template-columns:1fr}
+  .modal{max-height:95vh}
+}
+
+/* PRINT */
+@media print{
+  .sidebar,.header,.toolbar,.pagination,.btn,.no-print{display:none!important}
+  .main{padding:0;overflow:visible}
+  .app.active{display:block}
+  body{overflow:visible;background:#fff}
+  .table-scroll{max-height:none;overflow:visible}
+}
+
+/* SPINNER */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-full{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9000;color:#fff;flex-direction:column;gap:14px}
+.loader-full.active{display:flex}
+.loader-full .spinner{width:48px;height:48px;border-width:4px}
+
+/* UTIL */
+.flex{display:flex}.gap-2{gap:8px}.gap-3{gap:12px}.items-center{align-items:center}.justify-between{justify-content:space-between}
+.muted{color:var(--text-muted)}
+.text-center{text-align:center}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">⚕</div>
+    <h1>نظام إدارة الإجازات المرضية</h1>
+    <p class="sub">Enterprise Healthcare Management System</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>اسم المستخدم</label>
+        <input type="text" id="loginUser" value="admin" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>كلمة المرور</label>
+        <input type="password" id="loginPass" value="admin123" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn-login">تسجيل الدخول</button>
+    </form>
+    <div class="login-hint">المستخدم الافتراضي: <b>admin</b> / كلمة المرور: <b>admin123</b></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">⚕</div>
+      <div class="sidebar-title">إدارة الإجازات<small>Enterprise System</small></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">الرئيسية</div>
+      <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> لوحة التحكم</div>
+      <div class="nav-item" data-page="employees"><span class="icon">👥</span> الموظفون <span class="badge" id="badgeEmp">0</span></div>
+      <div class="nav-item" data-page="leaves"><span class="icon">🏥</span> الإجازات المرضية <span class="badge" id="badgeLv">0</span></div>
+      <div class="nav-item" data-page="reports"><span class="icon">📑</span> التقارير</div>
+      <div class="nav-section">الإدارة</div>
+      <div class="nav-item" data-page="departments"><span class="icon">🏢</span> الأقسام</div>
+      <div class="nav-item" data-page="jobs"><span class="icon">💼</span> الوظائف</div>
+      <div class="nav-item" data-page="users" data-admin="1"><span class="icon">🔐</span> المستخدمون</div>
+      <div class="nav-item" data-page="audit"><span class="icon">📋</span> سجل التدقيق</div>
+      <div class="nav-item" data-page="trash"><span class="icon">🗑️</span> سلة المهملات</div>
+      <div class="nav-section">النظام</div>
+      <div class="nav-item" data-page="settings"><span class="icon">⚙️</span> الإعدادات</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="db-status">
+        <span class="db-dot" id="dbDot"></span>
+        <span id="dbStatusText">قاعدة البيانات جاهزة</span>
+      </div>
+      <div style="margin-top:8px;font-size:11px;text-align:center;color:#475569">v1.0 • Offline Ready</div>
+    </div>
+  </aside>
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="menu-btn icon-btn" id="menuBtn">☰</button>
+    <h1 class="page-title" id="pageTitle">لوحة التحكم</h1>
+    <div class="header-search">
+      <input type="text" id="globalSearch" placeholder="بحث سريع... (Ctrl+K)" />
+      <span class="ico">🔍</span>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="voiceBtn" title="بحث صوتي">🎤</button>
+      <button class="icon-btn" id="themeBtn" title="الوضع الليلي">🌙</button>
+      <button class="icon-btn" id="backupBtn" title="نسخة احتياطية">💾</button>
+      <button class="icon-btn" id="printBtn" title="طباعة">🖨️</button>
+      <div class="user-chip" id="userChip">
+        <div class="user-avatar" id="userAv">A</div>
+        <div><div class="user-name" id="userName">admin</div><div class="user-role" id="userRole">Admin</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="charts-grid">
+        <div class="chart-box"><h3>الإجازات الشهرية</h3><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div>
+        <div class="chart-box"><h3>حالات الإجازات</h3><div class="chart-wrap"><canvas id="chartStatus"></canvas></div></div>
+        <div class="chart-box"><h3>الأقسام الأكثر إجازات</h3><div class="chart-wrap"><canvas id="chartDept"></canvas></div></div>
+        <div class="chart-box"><h3>تطبيق القرار 259</h3><div class="chart-wrap"><canvas id="chartDecree"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES PAGE -->
+    <div class="page" id="page-employees">
+      <div class="toolbar">
+        <div class="search"><span class="ico">🔍</span><input type="text" id="empSearch" placeholder="بحث بالكود، الاسم، الرقم القومي..." /></div>
+        <select id="empFilterDept"><option value="">كل الأقسام</option></select>
+        <select id="empFilterJob"><option value="">كل الوظائف</option></select>
+        <select id="empFilterStatus"><option value="">كل الحالات</option><option>على رأس العمل</option><option>إجازة</option><option>منتدب</option><option>متقاعد</option><option>مستقيل</option></select>
+        <button class="btn btn-primary" onclick="openEmpModal()">➕ موظف جديد</button>
+        <button class="btn" onclick="importExcel('employees')">📥 استيراد</button>
+        <div class="btn-group">
+          <button class="btn btn-sm" onclick="exportData('employees','xlsx')">Excel</button>
+          <button class="btn btn-sm" onclick="exportData('employees','csv')">CSV</button>
+          <button class="btn btn-sm" onclick="exportData('employees','pdf')">PDF</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table id="empTable">
+            <thead><tr>
+              <th><input type="checkbox" class="chk" id="empCheckAll"/></th>
+              <th data-sort="code">الكود</th>
+              <th data-sort="name">الاسم</th>
+              <th data-sort="job">الوظيفة</th>
+              <th data-sort="department">القسم</th>
+              <th data-sort="hire_date">تاريخ التعيين</th>
+              <th data-sort="status">الحالة</th>
+              <th>الهاتف</th>
+              <th>إجراءات</th>
+            </tr></thead>
+            <tbody id="empBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="empPagination"></div>
+      </div>
+    </div>
+
+    <!-- LEAVES PAGE -->
+    <div class="page" id="page-leaves">
+      <div class="toolbar">
+        <div class="search"><span class="ico">🔍</span><input type="text" id="lvSearch" placeholder="بحث بالكود، الاسم، التشخيص، الطبيب..." /></div>
+        <select id="lvFilterStatus"><option value="">كل الحالات</option><option>تحت المراجعة</option><option>معتمدة</option><option>مرفوضة</option><option>منتهية</option></select>
+        <select id="lvFilterDecree"><option value="">القرار 259</option><option value="يطبق">يطبق</option><option value="لا يطبق">لا يطبق</option></select>
+        <input type="date" id="lvFilterFrom" title="من تاريخ" />
+        <input type="date" id="lvFilterTo" title="إلى تاريخ" />
+        <button class="btn btn-primary" onclick="openLvModal()">➕ إجازة جديدة</button>
+        <div class="btn-group">
+          <button class="btn btn-sm" onclick="exportData('leaves','xlsx')">Excel</button>
+          <button class="btn btn-sm" onclick="exportData('leaves','pdf')">PDF</button>
+          <button class="btn btn-sm btn-danger" onclick="bulkAction('delete')">حذف المحدد</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table id="lvTable">
+            <thead><tr>
+              <th><input type="checkbox" class="chk" id="lvCheckAll"/></th>
+              <th data-sort="id">#</th>
+              <th data-sort="employee_code">كود</th>
+              <th data-sort="employee_name">الاسم</th>
+              <th data-sort="department">القسم</th>
+              <th data-sort="date_from">من</th>
+              <th data-sort="date_to">إلى</th>
+              <th data-sort="days">الأيام</th>
+              <th>التشخيص</th>
+              <th>القرار 259</th>
+              <th data-sort="status">الحالة</th>
+              <th>ملفات</th>
+              <th>إجراءات</th>
+            </tr></thead>
+            <tbody id="lvBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="lvPagination"></div>
+      </div>
+    </div>
+
+    <!-- REPORTS PAGE -->
+    <div class="page" id="page-reports">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📑 تقارير النظام</div></div>
+        <div class="card-body">
+          <div class="form-grid cols-3">
+            <button class="btn btn-primary" onclick="genReport('monthly')">📅 تقرير شهري</button>
+            <button class="btn btn-primary" onclick="genReport('byDept')">🏢 تقرير حسب القسم</button>
+            <button class="btn btn-primary" onclick="genReport('byEmp')">👤 تقرير حسب الموظف</button>
+            <button class="btn btn-primary" onclick="genReport('byDiag')">🩺 تقرير حسب التشخيص</button>
+            <button class="btn btn-primary" onclick="genReport('decree')">⚖️ تقرير القرار 259</button>
+            <button class="btn btn-primary" onclick="genReport('all')">📊 التقرير الشامل</button>
+          </div>
+          <div id="reportResult" style="margin-top:20px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEPARTMENTS -->
+    <div class="page" id="page-departments">
+      <div class="toolbar">
+        <div class="search"><span class="ico">🔍</span><input type="text" id="depSearch" placeholder="بحث..." /></div>
+        <button class="btn btn-primary" onclick="openSimpleModal('departments')">➕ قسم جديد</button>
+      </div>
+      <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>#</th><th>اسم القسم</th><th>الوصف</th><th>عدد الموظفين</th><th>إجراءات</th></tr></thead><tbody id="depBody"></tbody></table></div></div>
+    </div>
+
+    <!-- JOBS -->
+    <div class="page" id="page-jobs">
+      <div class="toolbar">
+        <div class="search"><span class="ico">🔍</span><input type="text" id="jobSearch" placeholder="بحث..." /></div>
+        <button class="btn btn-primary" onclick="openSimpleModal('jobs')">➕ وظيفة جديدة</button>
+      </div>
+      <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>#</th><th>اسم الوظيفة</th><th>الوصف</th><th>عدد الموظفين</th><th>إجراءات</th></tr></thead><tbody id="jobBody"></tbody></table></div></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openUserModal()">➕ مستخدم جديد</button>
+      </div>
+      <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>#</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الصلاحية</th><th>تاريخ الإنشاء</th><th>إجراءات</th></tr></thead><tbody id="usrBody"></tbody></table></div></div>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="page" id="page-audit">
+      <div class="toolbar">
+        <div class="search"><span class="ico">🔍</span><input type="text" id="audSearch" placeholder="بحث..." /></div>
+        <select id="audFilterAction"><option value="">كل العمليات</option><option>إضافة</option><option>تعديل</option><option>حذف</option><option>استعادة</option><option>تسجيل دخول</option><option>تصدير</option><option>استيراد</option></select>
+        <button class="btn" onclick="exportData('audit','xlsx')">📤 تصدير</button>
+        <button class="btn btn-danger" onclick="clearAudit()">🗑️ مسح السجل</button>
+      </div>
+      <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>#</th><th>التاريخ والوقت</th><th>المستخدم</th><th>العملية</th><th>الجدول</th><th>التفاصيل</th></tr></thead><tbody id="audBody"></tbody></table></div></div>
+    </div>
+
+    <!-- TRASH -->
+    <div class="page" id="page-trash">
+      <div class="toolbar">
+        <select id="trashType"><option value="employees">الموظفون</option><option value="leaves">الإجازات</option></select>
+        <button class="btn btn-danger" onclick="emptyTrash()">🗑️ تفريغ السلة</button>
+      </div>
+      <div class="table-wrap"><div class="table-scroll"><table id="trashTable"><thead id="trashHead"></thead><tbody id="trashBody"></tbody></table></div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-header"><div class="card-title">⚙️ إعدادات النظام</div></div>
+        <div class="card-body">
+          <div class="setting-row">
+            <div class="setting-info"><h4>اسم المنشأة</h4><p>يظهر في التقارير والطباعة</p></div>
+            <input type="text" id="setOrgName" style="width:280px;padding:8px 12px;border:1px solid var(--border);border-radius:8px" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>الوضع الليلي</h4><p>تفعيل الواجهة الداكنة</p></div>
+            <button class="btn" onclick="toggleTheme()">تبديل</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>النسخ الاحتياطي التلقائي</h4><p>حفظ نسخة كل ساعة</p></div>
+            <input type="checkbox" id="setAutoBackup" class="chk" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>تصدير قاعدة البيانات</h4><p>ملف SQLite كامل</p></div>
+            <button class="btn btn-primary" onclick="exportDB()">💾 تصدير</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>استيراد قاعدة البيانات</h4><p>استعادة من نسخة احتياطية</p></div>
+            <input type="file" id="importDBInput" accept=".db,.sqlite" style="display:none" />
+            <button class="btn btn-warning" onclick="document.getElementById('importDBInput').click()">📥 استيراد</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>ضغط قاعدة البيانات</h4><p>VACUUM لتحسين الأداء</p></div>
+            <button class="btn" onclick="vacuumDB()">🗜️ ضغط</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>إعادة تعيين النظام</h4><p>حذف كل البيانات (لا يمكن التراجع)</p></div>
+            <button class="btn btn-danger" onclick="resetSystem()">⚠️ إعادة تعيين</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><h4>تغيير كلمة المرور</h4><p>لحساب المستخدم الحالي</p></div>
+            <button class="btn btn-primary" onclick="openPasswordModal()">🔑 تغيير</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">⌨️ اختصارات لوحة المفاتيح</div></div>
+        <div class="card-body">
+          <div class="form-grid cols-2">
+            <div>Ctrl + K: البحث السريع</div>
+            <div>Ctrl + N: إضافة جديد</div>
+            <div>Ctrl + S: حفظ</div>
+            <div>Ctrl + B: نسخة احتياطية</div>
+            <div>Ctrl + P: طباعة</div>
+            <div>Esc: إغلاق النوافذ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- LOADER -->
+<div class="loader-full" id="loaderFull"><div class="spinner"></div><div id="loaderText">جاري التحميل...</div></div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu"></div>
+
+<!-- MODALS -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalContainer"></div>
+</div>
+
+<script>
+/* ============================================================
+   ENTERPRISE SICK LEAVES MANAGEMENT SYSTEM
+   Pure Vanilla JS + sql.js + IndexedDB persistence
+   ============================================================ */
+
+/* ============ GLOBAL STATE ============ */
+const State = {
+  db: null,
+  SQL: null,
+  currentUser: null,
+  currentPage: 'dashboard',
+  emp: { page:1, perPage:15, sort:'id', dir:'DESC', search:'', filters:{} },
+  lv:  { page:1, perPage:15, sort:'id', dir:'DESC', search:'', filters:{} },
+  selectedRows: new Set(),
+  charts: {},
+  pendingFiles: [],
+  saveTimer: null,
+};
+
+/* ============ INDEXEDDB PERSISTENCE ============ */
+const IDB_NAME = 'sickleaves_db';
+const IDB_STORE = 'database';
+const IDB_KEY = 'main';
+
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(IDB_NAME,1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = e => rej(e);
+  });
+}
+async function idbSave(data){
+  const db = await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(data, IDB_KEY);
+    tx.oncomplete = ()=>res();
+    tx.onerror = e=>rej(e);
+  });
+}
+async function idbLoad(){
+  const db = await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(IDB_STORE,'readonly');
+    const r = tx.objectStore(IDB_STORE).get(IDB_KEY);
+    r.onsuccess = ()=>res(r.result);
+    r.onerror = e=>rej(e);
+  });
+}
+async function idbClear(){
+  const db = await idbOpen();
+  return new Promise((res)=>{
+    const tx = db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).clear();
+    tx.oncomplete = ()=>res();
+  });
+}
+
+/* ============ DB INIT ============ */
+async function initDB(){
+  showLoader('جاري تهيئة قاعدة البيانات...');
+  try{
+    State.SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
+    const saved = await idbLoad();
+    if(saved){
+      State.db = new State.SQL.Database(new Uint8Array(saved));
+      setDbStatus('قاعدة البيانات محملة');
+    }else{
+      State.db = new State.SQL.Database();
+      createSchema();
+      seedData();
+      await saveDB();
+      setDbStatus('قاعدة جديدة');
+    }
+    hideLoader();
+  }catch(e){
+    console.error(e);
+    hideLoader();
+    toast('فشل تحميل قاعدة البيانات: '+e.message,'error');
+  }
+}
+
+function createSchema(){
+  State.db.exec(`
+    CREATE TABLE IF NOT EXISTS departments(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      deleted INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS jobs(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      deleted INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS employees(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      job TEXT,
+      department TEXT,
+      hire_date TEXT,
+      start_date TEXT,
+      birth_date TEXT,
+      national_id TEXT,
+      status TEXT DEFAULT 'على رأس العمل',
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      notes TEXT,
+      archived INTEGER DEFAULT 0,
+      deleted INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS leaves(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_code TEXT NOT NULL,
+      employee_name TEXT,
+      department TEXT,
+      job TEXT,
+      date_from TEXT NOT NULL,
+      date_to TEXT NOT NULL,
+      days INTEGER,
+      diagnosis TEXT,
+      decree_259 TEXT DEFAULT 'لا يطبق',
+      issuer TEXT,
+      doctor TEXT,
+      status TEXT DEFAULT 'تحت المراجعة',
+      notes TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      deleted INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS leave_files(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      leave_id INTEGER NOT NULL,
+      name TEXT,
+      type TEXT,
+      size INTEGER,
+      data TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(leave_id) REFERENCES leaves(id)
+    );
+    CREATE TABLE IF NOT EXISTS users(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      full_name TEXT,
+      role TEXT DEFAULT 'Viewer',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS audit_log(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT DEFAULT CURRENT_TIMESTAMP,
+      username TEXT,
+      action TEXT,
+      table_name TEXT,
+      details TEXT
+    );
+    CREATE TABLE IF NOT EXISTS settings(
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_emp_code ON employees(code);
+    CREATE INDEX IF NOT EXISTS idx_emp_dept ON employees(department);
+    CREATE INDEX IF NOT EXISTS idx_lv_emp ON leaves(employee_code);
+    CREATE INDEX IF NOT EXISTS idx_lv_status ON leaves(status);
+    CREATE INDEX IF NOT EXISTS idx_lv_dates ON leaves(date_from,date_to);
+  `);
+}
+
+function seedData(){
+  // Default admin user (password: admin123 - SHA256 below)
+  const adminHash = hashPassword('admin123');
+  State.db.run("INSERT INTO users(username,password,full_name,role) VALUES(?,?,?,?)",
+    ['admin', adminHash, 'مدير النظام', 'Admin']);
+  // Sample departments
+  ['الموارد البشرية','تقنية المعلومات','المالية','الشؤون الإدارية','العمليات','المبيعات'].forEach(d=>{
+    State.db.run("INSERT INTO departments(name) VALUES(?)",[d]);
+  });
+  // Sample jobs
+  ['مدير','مهندس','محاسب','موظف إداري','فني','أخصائي'].forEach(j=>{
+    State.db.run("INSERT INTO jobs(name) VALUES(?)",[j]);
+  });
+  // Default settings
+  State.db.run("INSERT INTO settings(key,value) VALUES(?,?)",['org_name','المنشأة']);
+  State.db.run("INSERT INTO settings(key,value) VALUES(?,?)",['theme','light']);
+}
+
+function hashPassword(p){
+  // Simple SHA-256-ish using built-in (sync djb2 for offline simplicity)
+  let h = 5381;
+  for(let i=0;i<p.length;i++) h = ((h<<5)+h) + p.charCodeAt(i);
+  return 'h_' + (h>>>0).toString(36) + '_' + p.length;
+}
+
+async function saveDB(){
+  if(!State.db) return;
+  clearTimeout(State.saveTimer);
+  State.saveTimer = setTimeout(async ()=>{
+    try{
+      const data = State.db.export();
+      await idbSave(data);
+      setDbStatus('تم الحفظ ✓');
+    }catch(e){
+      console.error(e);
+      toast('فشل الحفظ: '+e.message,'error');
+    }
+  }, 300);
+}
+
+function setDbStatus(text){
+  const el = document.getElementById('dbStatusText');
+  if(el) el.textContent = text;
+}
+
+/* ============ DB QUERY HELPERS ============ */
+function q(sql, params=[]){
+  const stmt = State.db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while(stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+function qone(sql, params=[]){ return q(sql,params)[0]; }
+function exec(sql, params=[]){
+  State.db.run(sql, params);
+  saveDB();
+}
+function execMany(sql, list){
+  const stmt = State.db.prepare(sql);
+  list.forEach(p=>{ stmt.run(p); });
+  stmt.free();
+  saveDB();
+}
+
+/* ============ AUDIT ============ */
+function audit(action, table, details){
+  if(!State.currentUser) return;
+  State.db.run("INSERT INTO audit_log(username,action,table_name,details) VALUES(?,?,?,?)",
+    [State.currentUser.username, action, table, JSON.stringify(details||{})]);
+  saveDB();
+}
+
+/* ============ TOAST ============ */
+function toast(msg, type='info', duration=3500){
+  const wrap = document.getElementById('toastWrap');
+  const div = document.createElement('div');
+  const icons = {success:'✓',error:'✕',warning:'⚠',info:'ℹ'};
+  div.className = `toast ${type}`;
+  div.innerHTML = `<span class="ico">${icons[type]||'ℹ'}</span><div>${msg}</div>`;
+  wrap.appendChild(div);
+  setTimeout(()=>{
+    div.style.animation='slideInRight .25s reverse';
+    setTimeout(()=>div.remove(),250);
+  }, duration);
+}
+function showLoader(text='جاري التحميل...'){
+  document.getElementById('loaderText').textContent = text;
+  document.getElementById('loaderFull').classList.add('active');
+}
+function hideLoader(){ document.getElementById('loaderFull').classList.remove('active'); }
+
+/* ============ LOGIN ============ */
+document.getElementById('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if(!State.db){ await initDB(); }
+  const user = qone("SELECT * FROM users WHERE username=?",[u]);
+  if(!user){ toast('المستخدم غير موجود','error'); return; }
+  if(user.password !== hashPassword(p)){ toast('كلمة المرور غير صحيحة','error'); return; }
+  State.currentUser = user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('userName').textContent = user.full_name || user.username;
+  document.getElementById('userRole').textContent = user.role;
+  document.getElementById('userAv').textContent = (user.full_name||user.username)[0].toUpperCase();
+  audit('تسجيل دخول','users',{user:u});
+  toast(`مرحبًا ${user.full_name||user.username}`,'success');
+  applyRolePermissions();
+  loadTheme();
+  navigate('dashboard');
+});
+
+function applyRolePermissions(){
+  const role = State.currentUser.role;
+  document.querySelectorAll('[data-admin="1"]').forEach(el=>{
+    el.style.display = role === 'Admin' ? '' : 'none';
+  });
+}
+
+function logout(){
+  audit('تسجيل خروج','users',{});
+  State.currentUser = null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginScreen').style.display='flex';
+}
+
+/* ============ NAVIGATION ============ */
+function navigate(page){
+  State.currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el = document.getElementById('page-'+page);
+  if(el) el.classList.add('active');
+  const titles = {dashboard:'لوحة التحكم',employees:'الموظفون',leaves:'الإجازات المرضية',reports:'التقارير',departments:'الأقسام',jobs:'الوظائف',users:'المستخدمون',audit:'سجل التدقيق',trash:'سلة المهملات',settings:'الإعدادات'};
+  document.getElementById('pageTitle').textContent = titles[page]||page;
+  document.getElementById('sidebar').classList.remove('open');
+  // Load page data
+  switch(page){
+    case 'dashboard': renderDashboard(); break;
+    case 'employees': renderEmployees(); break;
+    case 'leaves': renderLeaves(); break;
+    case 'departments': renderDepartments(); break;
+    case 'jobs': renderJobs(); break;
+    case 'users': renderUsers(); break;
+    case 'audit': renderAudit(); break;
+    case 'trash': renderTrash(); break;
+    case 'settings': renderSettings(); break;
+  }
+}
+document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>navigate(n.dataset.page)));
+document.getElementById('menuBtn').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+document.getElementById('userChip').addEventListener('click', ()=>{
+  if(confirm('تسجيل الخروج؟')) logout();
+});
+
+/* ============ THEME ============ */
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀' : '🌙';
+  if(State.db) exec("INSERT OR REPLACE INTO settings(key,value) VALUES('theme',?)",[next]);
+}
+function loadTheme(){
+  const s = qone("SELECT value FROM settings WHERE key='theme'");
+  const t = s?.value || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const stats = {
+    totalEmp: qone("SELECT COUNT(*) c FROM employees WHERE deleted=0")?.c||0,
+    totalLv: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0")?.c||0,
+    active: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0 AND date(date_to) >= date('now') AND status='معتمدة'")?.c||0,
+    ended: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0 AND date(date_to) < date('now')")?.c||0,
+    approved: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0 AND status='معتمدة'")?.c||0,
+    rejected: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0 AND status='مرفوضة'")?.c||0,
+    pending: qone("SELECT COUNT(*) c FROM leaves WHERE deleted=0 AND status='تحت المراجعة'")?.c||0,
+    totalDays: qone("SELECT COALESCE(SUM(days),0) c FROM leaves WHERE deleted=0")?.c||0,
+  };
+  const cards = [
+    {l:'إجمالي الموظفين',v:stats.totalEmp,i:'👥',c:''},
+    {l:'إجمالي الإجازات',v:stats.totalLv,i:'🏥',c:'info'},
+    {l:'إجازات نشطة',v:stats.active,i:'⏳',c:'warning'},
+    {l:'منتهية',v:stats.ended,i:'✓',c:'success'},
+    {l:'معتمدة',v:stats.approved,i:'✅',c:'success'},
+    {l:'مرفوضة',v:stats.rejected,i:'❌',c:'danger'},
+    {l:'تحت المراجعة',v:stats.pending,i:'⌛',c:'warning'},
+    {l:'إجمالي أيام الإجازات',v:stats.totalDays,i:'📅',c:'info'},
+  ];
+  document.getElementById('statsGrid').innerHTML = cards.map(c=>`
+    <div class="stat-card ${c.c}">
+      <div class="stat-icon">${c.i}</div>
+      <div class="stat-label">${c.l}</div>
+      <div class="stat-value">${c.v.toLocaleString('ar-EG')}</div>
+    </div>`).join('');
+  // Update sidebar badges
+  document.getElementById('badgeEmp').textContent = stats.totalEmp;
+  document.getElementById('badgeLv').textContent = stats.totalLv;
+  renderCharts();
+}
+
+function renderCharts(){
+  // Destroy old
+  Object.values(State.charts).forEach(c=>c?.destroy?.());
+  State.charts = {};
+  // Monthly
+  const months = q(`SELECT strftime('%Y-%m',date_from) m, COUNT(*) c, SUM(days) d FROM leaves WHERE deleted=0 GROUP BY m ORDER BY m DESC LIMIT 12`).reverse();
+  State.charts.monthly = new Chart(document.getElementById('chartMonthly'),{
+    type:'line',
+    data:{labels:months.map(x=>x.m||'-'),datasets:[
+      {label:'عدد الإجازات',data:months.map(x=>x.c),borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,.15)',fill:true,tension:.4},
+      {label:'مجموع الأيام',data:months.map(x=>x.d||0),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.1)',fill:true,tension:.4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+  // Status
+  const st = q(`SELECT status, COUNT(*) c FROM leaves WHERE deleted=0 GROUP BY status`);
+  State.charts.status = new Chart(document.getElementById('chartStatus'),{
+    type:'doughnut',
+    data:{labels:st.map(x=>x.status),datasets:[{data:st.map(x=>x.c),backgroundColor:['#f59e0b','#10b981','#ef4444','#64748b']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+  // Dept
+  const dp = q(`SELECT department, COUNT(*) c FROM leaves WHERE deleted=0 AND department IS NOT NULL GROUP BY department ORDER BY c DESC LIMIT 6`);
+  State.charts.dept = new Chart(document.getElementById('chartDept'),{
+    type:'bar',
+    data:{labels:dp.map(x=>x.department),datasets:[{label:'عدد الإجازات',data:dp.map(x=>x.c),backgroundColor:'#0d9488'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+  });
+  // Decree
+  const dc = q(`SELECT decree_259 d, COUNT(*) c FROM leaves WHERE deleted=0 GROUP BY decree_259`);
+  State.charts.decree = new Chart(document.getElementById('chartDecree'),{
+    type:'pie',
+    data:{labels:dc.map(x=>x.d),datasets:[{data:dc.map(x=>x.c),backgroundColor:['#10b981','#64748b']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+/* ============ EMPLOYEES ============ */
+function renderEmployees(){
+  // Fill filters
+  const depts = q("SELECT DISTINCT name FROM departments WHERE deleted=0 ORDER BY name");
+  const jobs = q("SELECT DISTINCT name FROM jobs WHERE deleted=0 ORDER BY name");
+  const dSel = document.getElementById('empFilterDept');
+  const jSel = document.getElementById('empFilterJob');
+  dSel.innerHTML = '<option value="">كل الأقسام</option>' + depts.map(d=>`<option>${esc(d.name)}</option>`).join('');
+  jSel.innerHTML = '<option value="">كل الوظائف</option>' + jobs.map(d=>`<option>${esc(d.name)}</option>`).join('');
+  loadEmployees();
+}
+function loadEmployees(){
+  const st = State.emp;
+  let where = "WHERE deleted=0 AND archived=0";
+  const params = [];
+  if(st.search){
+    where += " AND (code LIKE ? OR name LIKE ? OR national_id LIKE ? OR phone LIKE ?)";
+    const s = `%${st.search}%`; params.push(s,s,s,s);
+  }
+  if(st.filters.dept){ where += " AND department=?"; params.push(st.filters.dept); }
+  if(st.filters.job){ where += " AND job=?"; params.push(st.filters.job); }
+  if(st.filters.status){ where += " AND status=?"; params.push(st.filters.status); }
+  const total = qone(`SELECT COUNT(*) c FROM employees ${where}`, params)?.c||0;
+  const pages = Math.max(1, Math.ceil(total/st.perPage));
+  if(st.page>pages) st.page=pages;
+  const offset = (st.page-1)*st.perPage;
+  const rows = q(`SELECT * FROM employees ${where} ORDER BY ${st.sort} ${st.dir} LIMIT ${st.perPage} OFFSET ${offset}`, params);
+  const tbody = document.getElementById('empBody');
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="9" class="table-empty"><div class="ico">📭</div>لا توجد بيانات</td></tr>`;
+  }else{
+    tbody.innerHTML = rows.map(r=>`
+      <tr data-id="${r.id}" oncontextmenu="ctxMenu(event,'emp',${r.id});return false">
+        <td><input type="checkbox" class="chk row-chk" value="${r.id}"/></td>
+        <td><b>${esc(r.code)}</b></td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.job||'-')}</td>
+        <td>${esc(r.department||'-')}</td>
+        <td>${esc(r.hire_date||'-')}</td>
+        <td>${statusBadge(r.status)}</td>
+        <td>${esc(r.phone||'-')}</td>
+        <td>
+          <button class="btn btn-sm" onclick="openEmpModal(${r.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteEmp(${r.id})">🗑️</button>
+          <button class="btn btn-sm" onclick="archiveEmp(${r.id})" title="أرشفة">📦</button>
+        </td>
+      </tr>`).join('');
+  }
+  renderPagination('empPagination', st, total, p=>{st.page=p;loadEmployees();});
+}
+
+function statusBadge(s){
+  const map = {
+    'على رأس العمل':'success','إجازة':'warning','منتدب':'info','متقاعد':'secondary','مستقيل':'danger',
+    'تحت المراجعة':'warning','معتمدة':'success','مرفوضة':'danger','منتهية':'secondary'
+  };
+  return `<span class="badge badge-${map[s]||'secondary'}">${esc(s||'-')}</span>`;
+}
+
+document.getElementById('empSearch').addEventListener('input', debounce(e=>{State.emp.search=e.target.value.trim();State.emp.page=1;loadEmployees();},300));
+['empFilterDept','empFilterJob','empFilterStatus'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',e=>{
+    const k = id.replace('empFilter','').toLowerCase();
+    State.emp.filters[k]=e.target.value; State.emp.page=1; loadEmployees();
+  });
+});
+document.getElementById('empCheckAll').addEventListener('change',e=>{
+  document.querySelectorAll('#empBody .row-chk').forEach(c=>c.checked=e.target.checked);
+});
+
+function openEmpModal(id){
+  const emp = id ? qone("SELECT * FROM employees WHERE id=?",[id]) : {};
+  const depts = q("SELECT name FROM departments WHERE deleted=0 ORDER BY name");
+  const jobs = q("SELECT name FROM jobs WHERE deleted=0 ORDER BY name");
+  openModal({
+    title: id ? '✏️ تعديل موظف' : '➕ موظف جديد',
+    size:'lg',
+    body:`
+      <form id="empForm">
+        <div class="form-grid cols-3">
+          <div class="field-group"><label>كود الموظف <span class="req">*</span></label><input name="code" value="${esc(emp.code||'')}" required /></div>
+          <div class="field-group full" style="grid-column:span 2"><label>اسم الموظف <span class="req">*</span></label><input name="name" value="${esc(emp.name||'')}" required /></div>
+          <div class="field-group"><label>الوظيفة</label><select name="job"><option value="">-</option>${jobs.map(j=>`<option ${emp.job===j.name?'selected':''}>${esc(j.name)}</option>`).join('')}</select></div>
+          <div class="field-group"><label>القسم</label><select name="department"><option value="">-</option>${depts.map(d=>`<option ${emp.department===d.name?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>
+          <div class="field-group"><label>الحالة الوظيفية</label><select name="status">${['على رأس العمل','إجازة','منتدب','متقاعد','مستقيل'].map(s=>`<option ${emp.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+          <div class="field-group"><label>تاريخ التعيين</label><input type="date" name="hire_date" value="${emp.hire_date||''}" /></div>
+          <div class="field-group"><label>تاريخ استلام العمل</label><input type="date" name="start_date" value="${emp.start_date||''}" /></div>
+          <div class="field-group"><label>تاريخ الميلاد</label><input type="date" name="birth_date" value="${emp.birth_date||''}" /></div>
+          <div class="field-group"><label>الرقم القومي</label><input name="national_id" maxlength="14" value="${esc(emp.national_id||'')}" /></div>
+          <div class="field-group"><label>رقم الهاتف</label><input name="phone" value="${esc(emp.phone||'')}" /></div>
+          <div class="field-group"><label>البريد الإلكتروني</label><input type="email" name="email" value="${esc(emp.email||'')}" /></div>
+          <div class="field-group full"><label>العنوان</label><input name="address" value="${esc(emp.address||'')}" /></div>
+          <div class="field-group full"><label>ملاحظات</label><textarea name="notes">${esc(emp.notes||'')}</textarea></div>
+        </div>
+      </form>`,
+    footer:`<button class="btn" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveEmp(${id||'null'})">💾 حفظ</button>`
+  });
+}
+
+function saveEmp(id){
+  const f = document.getElementById('empForm');
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  const data = Object.fromEntries(new FormData(f));
+  // Validate national_id
+  if(data.national_id && data.national_id.length>0 && data.national_id.length!==14){
+    toast('الرقم القومي يجب أن يكون 14 رقم','warning'); return;
+  }
+  try{
+    if(id){
+      State.db.run(`UPDATE employees SET code=?,name=?,job=?,department=?,status=?,hire_date=?,start_date=?,birth_date=?,national_id=?,phone=?,email=?,address=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [data.code,data.name,data.job,data.department,data.status,data.hire_date,data.start_date,data.birth_date,data.national_id,data.phone,data.email,data.address,data.notes,id]);
+      audit('تعديل','employees',{id,code:data.code});
+      toast('تم التعديل','success');
+    }else{
+      State.db.run(`INSERT INTO employees(code,name,job,department,status,hire_date,start_date,birth_date,national_id,phone,email,address,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [data.code,data.name,data.job,data.department,data.status,data.hire_date,data.start_date,data.birth_date,data.national_id,data.phone,data.email,data.address,data.notes]);
+      audit('إضافة','employees',{code:data.code});
+      toast('تم الإضافة','success');
+    }
+    saveDB();
+    closeModal();
+    loadEmployees();
+    if(State.currentPage==='dashboard') renderDashboard();
+  }catch(e){
+    toast('خطأ: '+e.message,'error');
+  }
+}
+
+function deleteEmp(id){
+  if(!confirm('نقل الموظف إلى سلة المهملات؟')) return;
+  exec("UPDATE employees SET deleted=1 WHERE id=?",[id]);
+  audit('حذف','employees',{id});
+  toast('تم النقل إلى سلة المهملات','warning');
+  loadEmployees();
+}
+function archiveEmp(id){
+  exec("UPDATE employees SET archived=1 WHERE id=?",[id]);
+  audit('أرشفة','employees',{id});
+  toast('تم الأرشفة','info');
+  loadEmployees();
+}
+
+/* ============ LEAVES ============ */
+function renderLeaves(){ loadLeaves(); }
+function loadLeaves(){
+  const st = State.lv;
+  let where = "WHERE deleted=0";
+  const params = [];
+  if(st.search){
+    where += " AND (employee_code LIKE ? OR employee_name LIKE ? OR diagnosis LIKE ? OR doctor LIKE ? OR issuer LIKE ?)";
+    const s = `%${st.search}%`; params.push(s,s,s,s,s);
+  }
+  if(st.filters.status){ where += " AND status=?"; params.push(st.filters.status); }
+  if(st.filters.decree){ where += " AND decree_259=?"; params.push(st.filters.decree); }
+  if(st.filters.from){ where += " AND date(date_from) >= date(?)"; params.push(st.filters.from); }
+  if(st.filters.to){ where += " AND date(date_to) <= date(?)"; params.push(st.filters.to); }
+  const total = qone(`SELECT COUNT(*) c FROM leaves ${where}`,params)?.c||0;
+  const pages = Math.max(1,Math.ceil(total/st.perPage));
+  if(st.page>pages) st.page=pages;
+  const offset = (st.page-1)*st.perPage;
+  const rows = q(`SELECT *, (SELECT COUNT(*) FROM leave_files WHERE leave_id=leaves.id) fc FROM leaves ${where} ORDER BY ${st.sort} ${st.dir} LIMIT ${st.perPage} OFFSET ${offset}`,params);
+  const tbody = document.getElementById('lvBody');
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="13" class="table-empty"><div class="ico">📭</div>لا توجد إجازات</td></tr>`;
+  }else{
+    tbody.innerHTML = rows.map(r=>`
+      <tr data-id="${r.id}" oncontextmenu="ctxMenu(event,'lv',${r.id});return false">
+        <td><input type="checkbox" class="chk row-chk" value="${r.id}"/></td>
+        <td>${r.id}</td>
+        <td><b>${esc(r.employee_code)}</b></td>
+        <td>${esc(r.employee_name||'-')}</td>
+        <td>${esc(r.department||'-')}</td>
+        <td>${esc(r.date_from)}</td>
+        <td>${esc(r.date_to)}</td>
+        <td><b>${r.days}</b></td>
+        <td title="${esc(r.diagnosis||'')}">${esc((r.diagnosis||'').substr(0,30))}${(r.diagnosis||'').length>30?'...':''}</td>
+        <td><span class="badge badge-${r.decree_259==='يطبق'?'success':'secondary'}">${esc(r.decree_259)}</span></td>
+        <td>${statusBadge(r.status)}</td>
+        <td>${r.fc>0?`<button class="btn btn-sm" onclick="viewFiles(${r.id})">📎 ${r.fc}</button>`:'-'}</td>
+        <td>
+          <button class="btn btn-sm" onclick="openLvModal(${r.id})">✏️</button>
+          <button class="btn btn-sm" onclick="viewLv(${r.id})">👁️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteLv(${r.id})">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+  renderPagination('lvPagination', st, total, p=>{st.page=p;loadLeaves();});
+}
+document.getElementById('lvSearch').addEventListener('input', debounce(e=>{State.lv.search=e.target.value.trim();State.lv.page=1;loadLeaves();},300));
+['lvFilterStatus','lvFilterDecree','lvFilterFrom','lvFilterTo'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',e=>{
+    const k = id.replace('lvFilter','').toLowerCase();
+    State.lv.filters[k]=e.target.value; State.lv.page=1; loadLeaves();
+  });
+});
+
+function openLvModal(id){
+  const lv = id ? qone("SELECT * FROM leaves WHERE id=?",[id]) : {};
+  State.pendingFiles = id ? q("SELECT id,name,type,size FROM leave_files WHERE leave_id=?",[id]).map(f=>({...f,existing:true})) : [];
+  openModal({
+    title: id ? '✏️ تعديل إجازة' : '➕ إجازة جديدة',
+    size:'lg',
+    body:`
+      <form id="lvForm">
+        <div class="form-grid cols-3">
+          <div class="field-group">
+            <label>كود الموظف <span class="req">*</span></label>
+            <input name="employee_code" id="lvEmpCode" value="${esc(lv.employee_code||'')}" required list="empCodeList" autocomplete="off"/>
+            <datalist id="empCodeList">${q("SELECT code,name FROM employees WHERE deleted=0").map(e=>`<option value="${esc(e.code)}">${esc(e.name)}</option>`).join('')}</datalist>
+          </div>
+          <div class="field-group full" style="grid-column:span 2"><label>اسم الموظف</label><input name="employee_name" id="lvEmpName" value="${esc(lv.employee_name||'')}" readonly /></div>
+          <div class="field-group"><label>القسم</label><input name="department" id="lvDept" value="${esc(lv.department||'')}" readonly /></div>
+          <div class="field-group"><label>الوظيفة</label><input name="job" id="lvJob" value="${esc(lv.job||'')}" readonly /></div>
+          <div class="field-group"><label>الحالة</label><select name="status">${['تحت المراجعة','معتمدة','مرفوضة','منتهية'].map(s=>`<option ${lv.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+          <div class="field-group"><label>التاريخ من <span class="req">*</span></label><input type="date" name="date_from" id="lvFrom" value="${lv.date_from||''}" required /></div>
+          <div class="field-group"><label>التاريخ إلى <span class="req">*</span></label><input type="date" name="date_to" id="lvTo" value="${lv.date_to||''}" required /></div>
+          <div class="field-group"><label>عدد الأيام</label><input name="days" id="lvDays" value="${lv.days||0}" readonly /></div>
+          <div class="field-group"><label>القرار 259</label><select name="decree_259"><option ${lv.decree_259==='لا يطبق'?'selected':''}>لا يطبق</option><option ${lv.decree_259==='يطبق'?'selected':''}>يطبق</option></select></div>
+          <div class="field-group"><label>جهة الإصدار</label><input name="issuer" value="${esc(lv.issuer||'')}" /></div>
+          <div class="field-group"><label>الطبيب / المستشفى</label><input name="doctor" value="${esc(lv.doctor||'')}" /></div>
+          <div class="field-group full"><label>التشخيص</label><textarea name="diagnosis">${esc(lv.diagnosis||'')}</textarea></div>
+          <div class="field-group full"><label>ملاحظات</label><textarea name="notes">${esc(lv.notes||'')}</textarea></div>
+          <div class="field-group full">
+            <label>الملفات المرفقة (PDF, صور, Word, تقارير, أشعة)</label>
+            <div class="dropzone" id="dropzone">
+              <div class="ico">📁</div>
+              <div>اسحب الملفات هنا أو انقر للاختيار</div>
+              <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" style="display:none"/>
+              <button type="button" class="btn btn-sm mt-2" onclick="document.getElementById('fileInput').click()">اختيار ملفات</button>
+              <button type="button" class="btn btn-sm mt-2" onclick="captureCamera()">📷 كاميرا</button>
+            </div>
+            <div class="files-list" id="filesList"></div>
+          </div>
+        </div>
+      </form>`,
+    footer:`<button class="btn" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveLv(${id||'null'})">💾 حفظ</button>`
+  });
+  // Init events
+  setupLvFormEvents();
+  renderFilesList();
+}
+
+function setupLvFormEvents(){
+  const code = document.getElementById('lvEmpCode');
+  const updateEmp = ()=>{
+    const e = qone("SELECT name,department,job FROM employees WHERE code=? AND deleted=0",[code.value.trim()]);
+    if(e){
+      document.getElementById('lvEmpName').value = e.name||'';
+      document.getElementById('lvDept').value = e.department||'';
+      document.getElementById('lvJob').value = e.job||'';
+    }
+  };
+  code.addEventListener('change',updateEmp);
+  code.addEventListener('input',updateEmp);
+  const calcDays = ()=>{
+    const f = document.getElementById('lvFrom').value;
+    const t = document.getElementById('lvTo').value;
+    if(f && t){
+      const d1 = new Date(f), d2 = new Date(t);
+      if(d2<d1){ toast('تاريخ النهاية قبل البداية','warning'); document.getElementById('lvDays').value=0; return; }
+      const diff = Math.floor((d2-d1)/(1000*60*60*24))+1;
+      document.getElementById('lvDays').value = diff;
+    }
+  };
+  document.getElementById('lvFrom').addEventListener('change',calcDays);
+  document.getElementById('lvTo').addEventListener('change',calcDays);
+  const fi = document.getElementById('fileInput');
+  fi.addEventListener('change', e=> handleFiles(e.target.files));
+  const dz = document.getElementById('dropzone');
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
+  dz.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));
+}
+async function handleFiles(files){
+  for(const file of files){
+    if(file.size > 5*1024*1024){ toast(`${file.name}: حجم كبير (>5MB)`,'warning'); continue; }
+    const data = await fileToBase64(file);
+    State.pendingFiles.push({name:file.name, type:file.type, size:file.size, data});
+  }
+  renderFilesList();
+}
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = e=>res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function renderFilesList(){
+  const el = document.getElementById('filesList');
+  if(!el) return;
+  el.innerHTML = State.pendingFiles.map((f,i)=>`
+    <div class="file-chip">
+      <span class="ico">${fileIcon(f.type||f.name)}</span>
+      <span class="name">${esc(f.name)}</span>
+      <span class="size">${formatBytes(f.size)}</span>
+      <span class="x" onclick="removePendingFile(${i})">✕</span>
+    </div>`).join('');
+}
+function removePendingFile(i){ State.pendingFiles.splice(i,1); renderFilesList(); }
+function fileIcon(t){
+  if(/pdf/i.test(t)) return '📄';
+  if(/image|png|jpg|jpeg/i.test(t)) return '🖼️';
+  if(/word|doc/i.test(t)) return '📝';
+  if(/sheet|xls/i.test(t)) return '📊';
+  return '📎';
+}
+function formatBytes(b){ if(b<1024) return b+'B'; if(b<1024*1024) return (b/1024).toFixed(1)+'KB'; return (b/1024/1024).toFixed(1)+'MB'; }
+async function captureCamera(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({video:true});
+    const video = document.createElement('video');
+    video.srcObject = stream; video.play();
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px';
+    video.style.cssText = 'max-width:90%;max-height:70vh;border-radius:12px';
+    modal.appendChild(video);
+    const btnSnap = document.createElement('button');
+    btnSnap.textContent = '📸 التقاط';
+    btnSnap.className = 'btn btn-primary';
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = '✕ إلغاء';
+    btnCancel.className = 'btn btn-danger';
+    const ctrl = document.createElement('div');
+    ctrl.style.cssText='display:flex;gap:10px';
+    ctrl.append(btnSnap,btnCancel);
+    modal.appendChild(ctrl);
+    document.body.appendChild(modal);
+    const cleanup = ()=>{ stream.getTracks().forEach(t=>t.stop()); modal.remove(); };
+    btnCancel.onclick = cleanup;
+    btnSnap.onclick = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video,0,0);
+      const data = canvas.toDataURL('image/jpeg',0.85);
+      State.pendingFiles.push({name:`camera_${Date.now()}.jpg`,type:'image/jpeg',size:data.length,data});
+      renderFilesList();
+      cleanup();
+    };
+  }catch(e){ toast('تعذر الوصول للكاميرا','error'); }
+}
+
+function saveLv(id){
+  const f = document.getElementById('lvForm');
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  const data = Object.fromEntries(new FormData(f));
+  data.days = parseInt(data.days)||0;
+  if(data.days<=0){ toast('عدد الأيام غير صحيح','warning'); return; }
+  // Check overlap
+  const overlap = qone(`SELECT id FROM leaves WHERE deleted=0 AND employee_code=? AND id != ? AND NOT (date(date_to) < date(?) OR date(date_from) > date(?))`,
+    [data.employee_code, id||0, data.date_from, data.date_to]);
+  if(overlap && !confirm('يوجد تداخل مع إجازة أخرى! متابعة؟')) return;
+  try{
+    let lvId = id;
+    if(id){
+      State.db.run(`UPDATE leaves SET employee_code=?,employee_name=?,department=?,job=?,date_from=?,date_to=?,days=?,diagnosis=?,decree_259=?,issuer=?,doctor=?,status=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [data.employee_code,data.employee_name,data.department,data.job,data.date_from,data.date_to,data.days,data.diagnosis,data.decree_259,data.issuer,data.doctor,data.status,data.notes,id]);
+      audit('تعديل','leaves',{id});
+      // Remove deleted files
+      const keepIds = State.pendingFiles.filter(f=>f.existing).map(f=>f.id);
+      const existing = q("SELECT id FROM leave_files WHERE leave_id=?",[id]).map(x=>x.id);
+      existing.forEach(eid=>{ if(!keepIds.includes(eid)) State.db.run("DELETE FROM leave_files WHERE id=?",[eid]); });
+    }else{
+      State.db.run(`INSERT INTO leaves(employee_code,employee_name,department,job,date_from,date_to,days,diagnosis,decree_259,issuer,doctor,status,notes,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [data.employee_code,data.employee_name,data.department,data.job,data.date_from,data.date_to,data.days,data.diagnosis,data.decree_259,data.issuer,data.doctor,data.status,data.notes,State.currentUser.username]);
+      lvId = qone("SELECT last_insert_rowid() id").id;
+      audit('إضافة','leaves',{id:lvId,code:data.employee_code});
+    }
+    // Insert new files
+    State.pendingFiles.filter(f=>!f.existing).forEach(f=>{
+      State.db.run("INSERT INTO leave_files(leave_id,name,type,size,data) VALUES(?,?,?,?,?)",
+        [lvId, f.name, f.type, f.size, f.data]);
+    });
+    saveDB();
+    toast(id?'تم التعديل':'تم الإضافة','success');
+    closeModal();
+    loadLeaves();
+  }catch(e){
+    toast('خطأ: '+e.message,'error');
+  }
+}
+
+function deleteLv(id){
+  if(!confirm('نقل الإجازة إلى سلة المهملات؟')) return;
+  exec("UPDATE leaves SET deleted=1 WHERE id=?",[id]);
+  audit('حذف','leaves',{id});
+  toast('تم الحذف','warning');
+  loadLeaves();
+}
+
+function viewLv(id){
+  const lv = qone("SELECT * FROM leaves WHERE id=?",[id]);
+  const files = q("SELECT id,name,type,size FROM leave_files WHERE leave_id=?",[id]);
+  openModal({
+    title:`📋 تفاصيل الإجازة #${id}`,
+    body:`
+      <div class="form-grid cols-2">
+        <div><b>كود الموظف:</b> ${esc(lv.employee_code)}</div>
+        <div><b>الاسم:</b> ${esc(lv.employee_name)}</div>
+        <div><b>القسم:</b> ${esc(lv.department||'-')}</div>
+        <div><b>الوظيفة:</b> ${esc(lv.job||'-')}</div>
+        <div><b>من:</b> ${esc(lv.date_from)}</div>
+        <div><b>إلى:</b> ${esc(lv.date_to)}</div>
+        <div><b>عدد الأيام:</b> ${lv.days}</div>
+        <div><b>الحالة:</b> ${statusBadge(lv.status)}</div>
+        <div><b>القرار 259:</b> ${esc(lv.decree_259)}</div>
+        <div><b>الطبيب:</b> ${esc(lv.doctor||'-')}</div>
+        <div style="grid-column:1/-1"><b>التشخيص:</b> ${esc(lv.diagnosis||'-')}</div>
+        <div style="grid-column:1/-1"><b>ملاحظات:</b> ${esc(lv.notes||'-')}</div>
+      </div>
+      ${files.length?`<h4 style="margin-top:20px;margin-bottom:10px">📎 الملفات المرفقة (${files.length}) <button class="btn btn-sm" onclick="downloadAllFiles(${id})">📦 تحميل الكل ZIP</button></h4>
+        <div class="preview-grid">${files.map(f=>`
+          <div class="preview-item" onclick="previewFile(${f.id})">
+            <div class="file-ico">${fileIcon(f.type||f.name)}</div>
+            <div class="lbl">${esc(f.name)}</div>
+          </div>`).join('')}</div>`:''}`,
+    footer:`<button class="btn" onclick="closeModal()">إغلاق</button><button class="btn btn-primary" onclick="closeModal();openLvModal(${id})">✏️ تعديل</button>`
+  });
+}
+
+function viewFiles(id){ viewLv(id); }
+
+function previewFile(fid){
+  const f = qone("SELECT * FROM leave_files WHERE id=?",[fid]);
+  if(!f) return;
+  const w = window.open();
+  if(/image/i.test(f.type)){
+    w.document.write(`<title>${f.name}</title><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${f.data}" style="max-width:100%;max-height:100vh"/></body>`);
+  }else if(/pdf/i.test(f.type)){
+    w.document.write(`<title>${f.name}</title><body style="margin:0"><embed src="${f.data}" style="width:100vw;height:100vh"/></body>`);
+  }else{
+    // Download
+    const a = document.createElement('a');
+    a.href = f.data; a.download = f.name; a.click();
+    w.close();
+  }
+}
+
+async function downloadAllFiles(lvId){
+  const files = q("SELECT name,data FROM leave_files WHERE leave_id=?",[lvId]);
+  if(!files.length){ toast('لا توجد ملفات','warning'); return; }
+  const zip = new JSZip();
+  for(const f of files){
+    const b64 = f.data.split(',')[1];
+    zip.file(f.name, b64, {base64:true});
+  }
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `leave_${lvId}_files.zip`;
+  a.click();
+}
+
+/* ============ DEPARTMENTS / JOBS ============ */
+function renderDepartments(){ loadSimpleTable('departments','depBody',['name','description'],['اسم القسم','الوصف']); }
+function renderJobs(){ loadSimpleTable('jobs','jobBody',['name','description'],['اسم الوظيفة','الوصف']); }
+function loadSimpleTable(table, bodyId, fields, labels){
+  const rows = q(`SELECT * FROM ${table} WHERE deleted=0 ORDER BY id DESC`);
+  const tbody = document.getElementById(bodyId);
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="5" class="table-empty"><div class="ico">📭</div>لا توجد بيانات</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r=>{
+    const count = qone(`SELECT COUNT(*) c FROM employees WHERE ${table==='departments'?'department':'job'}=? AND deleted=0`,[r.name])?.c||0;
+    return `<tr>
+      <td>${r.id}</td>
+      <td><b>${esc(r.name)}</b></td>
+      <td>${esc(r.description||'-')}</td>
+      <td><span class="badge badge-info">${count}</span></td>
+      <td>
+        <button class="btn btn-sm" onclick="openSimpleModal('${table}',${r.id})">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSimple('${table}',${r.id})">🗑️</button>
+      </td></tr>`;
+  }).join('');
+}
+function openSimpleModal(table, id){
+  const r = id ? qone(`SELECT * FROM ${table} WHERE id=?`,[id]) : {};
+  openModal({
+    title:(id?'تعديل':'إضافة')+' '+(table==='departments'?'قسم':'وظيفة'),
+    size:'sm',
+    body:`<form id="simpleForm">
+      <div class="field-group mb-3"><label>الاسم <span class="req">*</span></label><input name="name" value="${esc(r.name||'')}" required/></div>
+      <div class="field-group"><label>الوصف</label><textarea name="description">${esc(r.description||'')}</textarea></div>
+    </form>`,
+    footer:`<button class="btn" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveSimple('${table}',${id||'null'})">💾 حفظ</button>`
+  });
+}
+function saveSimple(table, id){
+  const f = document.getElementById('simpleForm');
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  const d = Object.fromEntries(new FormData(f));
+  try{
+    if(id){
+      exec(`UPDATE ${table} SET name=?, description=? WHERE id=?`,[d.name,d.description,id]);
+      audit('تعديل',table,{id});
+    }else{
+      exec(`INSERT INTO ${table}(name,description) VALUES(?,?)`,[d.name,d.description]);
+      audit('إضافة',table,{name:d.name});
+    }
+    toast('تم الحفظ','success');
+    closeModal();
+    table==='departments'?renderDepartments():renderJobs();
+  }catch(e){ toast('خطأ: '+e.message,'error'); }
+}
+function deleteSimple(table, id){
+  if(!confirm('حذف؟')) return;
+  exec(`UPDATE ${table} SET deleted=1 WHERE id=?`,[id]);
+  audit('حذف',table,{id});
+  toast('تم الحذف','warning');
+  table==='departments'?renderDepartments():renderJobs();
+}
+
+/* ============ USERS ============ */
+function renderUsers(){
+  const rows = q("SELECT id,username,full_name,role,created_at FROM users ORDER BY id");
+  document.getElementById('usrBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td>${r.id}</td>
+      <td><b>${esc(r.username)}</b></td>
+      <td>${esc(r.full_name||'-')}</td>
+      <td><span class="badge badge-${r.role==='Admin'?'danger':r.role==='HR'?'info':'secondary'}">${r.role}</span></td>
+      <td>${esc(r.created_at)}</td>
+      <td>
+        <button class="btn btn-sm" onclick="openUserModal(${r.id})">✏️</button>
+        ${r.username!=='admin'?`<button class="btn btn-sm btn-danger" onclick="deleteUser(${r.id})">🗑️</button>`:''}
+      </td>
+    </tr>`).join('');
+}
+function openUserModal(id){
+  const u = id ? qone("SELECT * FROM users WHERE id=?",[id]) : {};
+  openModal({
+    title: id?'تعديل مستخدم':'مستخدم جديد', size:'sm',
+    body:`<form id="userForm">
+      <div class="field-group mb-3"><label>اسم المستخدم *</label><input name="username" value="${esc(u.username||'')}" required ${id?'readonly':''}/></div>
+      <div class="field-group mb-3"><label>الاسم الكامل</label><input name="full_name" value="${esc(u.full_name||'')}"/></div>
+      <div class="field-group mb-3"><label>كلمة المرور ${id?'(فارغ لعدم التغيير)':'*'}</label><input type="password" name="password" ${id?'':'required'}/></div>
+      <div class="field-group"><label>الصلاحية</label><select name="role"><option ${u.role==='Admin'?'selected':''}>Admin</option><option ${u.role==='HR'?'selected':''}>HR</option><option ${u.role==='Viewer'?'selected':''}>Viewer</option></select></div>
+    </form>`,
+    footer:`<button class="btn" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="saveUser(${id||'null'})">💾 حفظ</button>`
+  });
+}
+function saveUser(id){
+  const f = document.getElementById('userForm');
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  const d = Object.fromEntries(new FormData(f));
+  try{
+    if(id){
+      if(d.password){
+        exec("UPDATE users SET full_name=?, role=?, password=? WHERE id=?",[d.full_name,d.role,hashPassword(d.password),id]);
+      }else{
+        exec("UPDATE users SET full_name=?, role=? WHERE id=?",[d.full_name,d.role,id]);
+      }
+      audit('تعديل','users',{id});
+    }else{
+      exec("INSERT INTO users(username,password,full_name,role) VALUES(?,?,?,?)",[d.username,hashPassword(d.password),d.full_name,d.role]);
+      audit('إضافة','users',{username:d.username});
+    }
+    toast('تم الحفظ','success');
+    closeModal(); renderUsers();
+  }catch(e){ toast('خطأ: '+e.message,'error'); }
+}
+function deleteUser(id){
+  if(!confirm('حذف المستخدم نهائياً؟')) return;
+  exec("DELETE FROM users WHERE id=?",[id]);
+  audit('حذف','users',{id});
+  toast('تم الحذف','warning');
+  renderUsers();
+}
+function openPasswordModal(){
+  openModal({
+    title:'تغيير كلمة المرور', size:'sm',
+    body:`<form id="pwForm">
+      <div class="field-group mb-3"><label>كلمة المرور الحالية *</label><input type="password" name="old" required/></div>
+      <div class="field-group mb-3"><label>كلمة المرور الجديدة *</label><input type="password" name="new" required minlength="4"/></div>
+      <div class="field-group"><label>تأكيد كلمة المرور *</label><input type="password" name="confirm" required/></div>
+    </form>`,
+    footer:`<button class="btn" onclick="closeModal()">إلغاء</button><button class="btn btn-primary" onclick="changePassword()">💾 تغيير</button>`
+  });
+}
+function changePassword(){
+  const f = document.getElementById('pwForm');
+  if(!f.checkValidity()){ f.reportValidity(); return; }
+  const d = Object.fromEntries(new FormData(f));
+  if(d.new !== d.confirm){ toast('كلمات المرور غير متطابقة','error'); return; }
+  if(hashPassword(d.old) !== State.currentUser.password){ toast('كلمة المرور الحالية خاطئة','error'); return; }
+  const newHash = hashPassword(d.new);
+  exec("UPDATE users SET password=? WHERE id=?",[newHash, State.currentUser.id]);
+  State.currentUser.password = newHash;
+  audit('تغيير كلمة المرور','users',{});
+  toast('تم تغيير كلمة المرور','success');
+  closeModal();
+}
+
+/* ============ AUDIT ============ */
+function renderAudit(){
+  const search = document.getElementById('audSearch').value.trim();
+  const action = document.getElementById('audFilterAction').value;
+  let where = "WHERE 1=1";
+  const params = [];
+  if(search){ where += " AND (username LIKE ? OR details LIKE ? OR table_name LIKE ?)"; const s=`%${search}%`; params.push(s,s,s); }
+  if(action){ where += " AND action=?"; params.push(action); }
+  const rows = q(`SELECT * FROM audit_log ${where} ORDER BY id DESC LIMIT 500`, params);
+  document.getElementById('audBody').innerHTML = rows.length? rows.map(r=>`
+    <tr>
+      <td>${r.id}</td>
+      <td>${esc(r.ts)}</td>
+      <td><b>${esc(r.username)}</b></td>
+      <td><span class="badge badge-${actionColor(r.action)}">${esc(r.action)}</span></td>
+      <td>${esc(r.table_name||'-')}</td>
+      <td><code style="font-size:11px">${esc(r.details||'-')}</code></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="table-empty"><div class="ico">📭</div>لا توجد سجلات</td></tr>`;
+}
+function actionColor(a){
+  return {'إضافة':'success','تعديل':'info','حذف':'danger','استعادة':'warning','تسجيل دخول':'secondary','تصدير':'info','استيراد':'info'}[a]||'secondary';
+}
+document.getElementById('audSearch').addEventListener('input',debounce(renderAudit,300));
+document.getElementById('audFilterAction').addEventListener('change',renderAudit);
+function clearAudit(){
+  if(!confirm('مسح كل السجل؟')) return;
+  exec("DELETE FROM audit_log");
+  renderAudit();
+  toast('تم مسح السجل','warning');
+}
+
+/* ============ TRASH ============ */
+function renderTrash(){
+  const type = document.getElementById('trashType').value;
+  const rows = q(`SELECT * FROM ${type} WHERE deleted=1 ORDER BY id DESC`);
+  const head = document.getElementById('trashHead');
+  const body = document.getElementById('trashBody');
+  if(type==='employees'){
+    head.innerHTML = '<tr><th>#</th><th>الكود</th><th>الاسم</th><th>القسم</th><th>إجراءات</th></tr>';
+    body.innerHTML = rows.length?rows.map(r=>`<tr><td>${r.id}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.department||'-')}</td><td>
+      <button class="btn btn-sm btn-success" onclick="restoreItem('employees',${r.id})">↩️ استعادة</button>
+      <button class="btn btn-sm btn-danger" onclick="purgeItem('employees',${r.id})">🗑️ حذف نهائي</button>
+    </td></tr>`).join(''):`<tr><td colspan="5" class="table-empty"><div class="ico">🗑️</div>السلة فارغة</td></tr>`;
+  }else{
+    head.innerHTML = '<tr><th>#</th><th>كود الموظف</th><th>الاسم</th><th>من</th><th>إلى</th><th>إجراءات</th></tr>';
+    body.innerHTML = rows.length?rows.map(r=>`<tr><td>${r.id}</td><td>${esc(r.employee_code)}</td><td>${esc(r.employee_name||'')}</td><td>${esc(r.date_from)}</td><td>${esc(r.date_to)}</td><td>
+      <button class="btn btn-sm btn-success" onclick="restoreItem('leaves',${r.id})">↩️ استعادة</button>
+      <button class="btn btn-sm btn-danger" onclick="purgeItem('leaves',${r.id})">🗑️ حذف نهائي</button>
+    </td></tr>`).join(''):`<tr><td colspan="6" class="table-empty"><div class="ico">🗑️</div>السلة فارغة</td></tr>`;
+  }
+}
+document.getElementById('trashType').addEventListener('change',renderTrash);
+function restoreItem(table,id){
+  exec(`UPDATE ${table} SET deleted=0 WHERE id=?`,[id]);
+  audit('استعادة',table,{id});
+  toast('تم الاستعادة','success'); renderTrash();
+}
+function purgeItem(table,id){
+  if(!confirm('حذف نهائي؟ لا يمكن التراجع!')) return;
+  exec(`DELETE FROM ${table} WHERE id=?`,[id]);
+  if(table==='leaves') exec("DELETE FROM leave_files WHERE leave_id=?",[id]);
+  audit('حذف نهائي',table,{id});
+  toast('تم الحذف النهائي','danger'); renderTrash();
+}
+function emptyTrash(){
+  if(!confirm('تفريغ السلة بالكامل؟ لا يمكن التراجع!')) return;
+  exec("DELETE FROM employees WHERE deleted=1");
+  exec("DELETE FROM leaves WHERE deleted=1");
+  audit('تفريغ السلة','all',{});
+  toast('تم التفريغ','warning'); renderTrash();
+}
+
+/* ============ SETTINGS ============ */
+function renderSettings(){
+  const org = qone("SELECT value FROM settings WHERE key='org_name'")?.value || '';
+  document.getElementById('setOrgName').value = org;
+  document.getElementById('setOrgName').onchange = e=>{
+    exec("INSERT OR REPLACE INTO settings(key,value) VALUES('org_name',?)",[e.target.value]);
+    toast('تم الحفظ','success');
+  };
+  document.getElementById('setAutoBackup').checked = localStorage.getItem('autoBackup')==='1';
+  document.getElementById('setAutoBackup').onchange = e=>{
+    localStorage.setItem('autoBackup', e.target.checked?'1':'0');
+    toast('تم التحديث','success');
+  };
+}
+document.getElementById('importDBInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!confirm('استيراد قاعدة بيانات جديدة سيستبدل البيانات الحالية. متابعة؟')) return;
+  const buf = await file.arrayBuffer();
+  State.db = new State.SQL.Database(new Uint8Array(buf));
+  await saveDB();
+  toast('تم الاستيراد','success');
+  setTimeout(()=>location.reload(),1000);
+});
+function exportDB(){
+  const data = State.db.export();
+  const blob = new Blob([data],{type:'application/x-sqlite3'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sickleaves_backup_${new Date().toISOString().slice(0,10)}.db`;
+  a.click();
+  audit('تصدير','database',{});
+  toast('تم تصدير قاعدة البيانات','success');
+}
+function vacuumDB(){
+  showLoader('جاري الضغط...');
+  setTimeout(()=>{
+    State.db.run("VACUUM");
+    saveDB();
+    hideLoader();
+    toast('تم الضغط','success');
+  },100);
+}
+async function resetSystem(){
+  if(!confirm('⚠️ سيتم حذف جميع البيانات نهائياً! متأكد؟')) return;
+  if(!confirm('تأكيد نهائي - لا يمكن التراجع!')) return;
+  await idbClear();
+  toast('تم إعادة التعيين','warning');
+  setTimeout(()=>location.reload(),1000);
+}
+
+/* ============ EXPORT / IMPORT ============ */
+function exportData(type, format){
+  let rows = [], cols = [], filename = type;
+  if(type==='employees'){
+    rows = q("SELECT code,name,job,department,status,hire_date,phone,email,national_id,address FROM employees WHERE deleted=0");
+    cols = ['الكود','الاسم','الوظيفة','القسم','الحالة','تاريخ التعيين','الهاتف','البريد','الرقم القومي','العنوان'];
+  }else if(type==='leaves'){
+    rows = q("SELECT id,employee_code,employee_name,department,date_from,date_to,days,diagnosis,decree_259,doctor,status FROM leaves WHERE deleted=0");
+    cols = ['#','الكود','الاسم','القسم','من','إلى','الأيام','التشخيص','القرار 259','الطبيب','الحالة'];
+  }else if(type==='audit'){
+    rows = q("SELECT id,ts,username,action,table_name,details FROM audit_log");
+    cols = ['#','التاريخ','المستخدم','العملية','الجدول','التفاصيل'];
+  }
+  if(!rows.length){ toast('لا توجد بيانات','warning'); return; }
+  const dataArr = rows.map(r=>Object.values(r));
+  if(format==='xlsx'){
+    const ws = XLSX.utils.aoa_to_sheet([cols,...dataArr]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,type);
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  }else if(format==='csv'){
+    const csv = [cols.join(','), ...dataArr.map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\ufeff'+csv],{type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${filename}.csv`; a.click();
+  }else if(format==='pdf'){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'landscape'});
+    doc.setFontSize(14);
+    doc.text(`Report: ${type}`, 14, 15);
+    doc.autoTable({ head:[cols], body:dataArr, startY:22, styles:{fontSize:8}, headStyles:{fillColor:[13,148,136]}});
+    doc.save(`${filename}.pdf`);
+  }
+  audit('تصدير',type,{format,count:rows.length});
+  toast('تم التصدير','success');
+}
+
+function importExcel(type){
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='.xlsx,.xls,.csv';
+  inp.onchange = async e=>{
+    const file = e.target.files[0]; if(!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws);
+    if(!rows.length){ toast('الملف فارغ','warning'); return; }
+    let ok = 0, fail = 0;
+    rows.forEach(r=>{
+      try{
+        if(type==='employees'){
+          State.db.run(`INSERT OR IGNORE INTO employees(code,name,job,department,status,hire_date,phone,email,national_id,address) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+            [r['الكود']||r.code||'',r['الاسم']||r.name||'',r['الوظيفة']||r.job||'',r['القسم']||r.department||'',r['الحالة']||r.status||'على رأس العمل',r['تاريخ التعيين']||r.hire_date||'',r['الهاتف']||r.phone||'',r['البريد']||r.email||'',r['الرقم القومي']||r.national_id||'',r['العنوان']||r.address||'']);
+          ok++;
+        }
+      }catch(e){ fail++; }
+    });
+    saveDB();
+    audit('استيراد',type,{ok,fail});
+    toast(`تم استيراد ${ok} • فشل ${fail}`,'success');
+    if(type==='employees') loadEmployees();
+  };
+  inp.click();
+}
+
+/* ============ REPORTS ============ */
+function genReport(type){
+  let html = '', rows = [], cols = [];
+  switch(type){
+    case 'monthly':
+      rows = q(`SELECT strftime('%Y-%m',date_from) شهر, COUNT(*) عدد_الإجازات, SUM(days) مجموع_الأيام FROM leaves WHERE deleted=0 GROUP BY شهر ORDER BY شهر DESC`);
+      break;
+    case 'byDept':
+      rows = q(`SELECT department القسم, COUNT(*) عدد_الإجازات, SUM(days) مجموع_الأيام FROM leaves WHERE deleted=0 GROUP BY department ORDER BY عدد_الإجازات DESC`);
+      break;
+    case 'byEmp':
+      rows = q(`SELECT employee_code الكود, employee_name الاسم, COUNT(*) عدد, SUM(days) أيام FROM leaves WHERE deleted=0 GROUP BY employee_code ORDER BY عدد DESC`);
+      break;
+    case 'byDiag':
+      rows = q(`SELECT diagnosis التشخيص, COUNT(*) عدد FROM leaves WHERE deleted=0 AND diagnosis!='' GROUP BY diagnosis ORDER BY عدد DESC LIMIT 50`);
+      break;
+    case 'decree':
+      rows = q(`SELECT decree_259 'القرار 259', COUNT(*) عدد, SUM(days) أيام FROM leaves WHERE deleted=0 GROUP BY decree_259`);
+      break;
+    case 'all':
+      rows = q(`SELECT id '#', employee_code 'الكود', employee_name 'الاسم', department 'القسم', date_from 'من', date_to 'إلى', days 'الأيام', status 'الحالة', decree_259 'القرار' FROM leaves WHERE deleted=0 ORDER BY id DESC`);
+      break;
+  }
+  if(!rows.length){ document.getElementById('reportResult').innerHTML='<div class="table-empty">لا توجد بيانات</div>'; return; }
+  cols = Object.keys(rows[0]);
+  html = `<div class="card"><div class="card-header"><div class="card-title">نتائج التقرير (${rows.length})</div>
+    <div class="btn-group">
+      <button class="btn btn-sm" onclick="exportReport('${type}','xlsx')">📤 Excel</button>
+      <button class="btn btn-sm" onclick="exportReport('${type}','pdf')">📄 PDF</button>
+      <button class="btn btn-sm" onclick="window.print()">🖨️ طباعة</button>
+    </div></div>
+    <div class="table-scroll"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  document.getElementById('reportResult').innerHTML = html;
+  document.getElementById('reportResult').dataset.type = type;
+  document.getElementById('reportResult').dataset.rows = JSON.stringify(rows);
+}
+function exportReport(type, format){
+  const rows = JSON.parse(document.getElementById('reportResult').dataset.rows);
+  const cols = Object.keys(rows[0]);
+  const data = rows.map(r=>cols.map(c=>r[c]));
+  if(format==='xlsx'){
+    const ws = XLSX.utils.aoa_to_sheet([cols,...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Report');
+    XLSX.writeFile(wb,`report_${type}.xlsx`);
+  }else if(format==='pdf'){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'landscape'});
+    doc.setFontSize(14); doc.text(`Report: ${type}`,14,15);
+    doc.autoTable({ head:[cols], body:data, startY:22, styles:{fontSize:9}, headStyles:{fillColor:[13,148,136]} });
+    doc.save(`report_${type}.pdf`);
+  }
+  toast('تم التصدير','success');
+}
+
+/* ============ MODAL ============ */
+function openModal({title, body, footer, size}){
+  const m = document.getElementById('modalContainer');
+  m.className = 'modal ' + (size||'');
+  m.innerHTML = `
+    <div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">${body}</div>
+    ${footer?`<div class="modal-footer">${footer}</div>`:''}`;
+  document.getElementById('modalBackdrop').classList.add('active');
+}
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.remove('active');
+  State.pendingFiles = [];
+}
+document.getElementById('modalBackdrop').addEventListener('click', e=>{
+  if(e.target.id==='modalBackdrop') closeModal();
+});
+
+/* ============ PAGINATION ============ */
+function renderPagination(elId, st, total, cb){
+  const pages = Math.max(1, Math.ceil(total/st.perPage));
+  const from = total===0?0:(st.page-1)*st.perPage+1;
+  const to = Math.min(st.page*st.perPage, total);
+  let html = `<div class="info">عرض ${from} - ${to} من ${total}</div><div class="pages">`;
+  html += `<button ${st.page<=1?'disabled':''} data-p="${st.page-1}">‹</button>`;
+  const start = Math.max(1, st.page-2);
+  const end = Math.min(pages, start+4);
+  for(let i=start;i<=end;i++){
+    html += `<button ${i===st.page?'class="active"':''} data-p="${i}">${i}</button>`;
+  }
+  html += `<button ${st.page>=pages?'disabled':''} data-p="${st.page+1}">›</button></div>`;
+  const el = document.getElementById(elId);
+  el.innerHTML = html;
+  el.querySelectorAll('button[data-p]').forEach(b=>b.addEventListener('click',()=>cb(parseInt(b.dataset.p))));
+}
+
+/* ============ SORTING ============ */
+document.addEventListener('click', e=>{
+  const th = e.target.closest('th[data-sort]');
+  if(!th) return;
+  const table = th.closest('table').id;
+  const sort = th.dataset.sort;
+  const st = table==='empTable'?State.emp:table==='lvTable'?State.lv:null;
+  if(!st) return;
+  if(st.sort===sort) st.dir = st.dir==='ASC'?'DESC':'ASC';
+  else { st.sort = sort; st.dir='ASC'; }
+  table==='empTable'?loadEmployees():loadLeaves();
+});
+
+/* ============ BULK ============ */
+function bulkAction(action){
+  const ids = [...document.querySelectorAll('#lvBody .row-chk:checked')].map(c=>parseInt(c.value));
+  if(!ids.length){ toast('لم يتم اختيار صفوف','warning'); return; }
+  if(action==='delete'){
+    if(!confirm(`حذف ${ids.length} عنصر؟`)) return;
+    ids.forEach(id=>State.db.run("UPDATE leaves SET deleted=1 WHERE id=?",[id]));
+    saveDB();
+    audit('حذف جماعي','leaves',{count:ids.length});
+    toast(`تم حذف ${ids.length}`,'warning');
+    loadLeaves();
+  }
+}
+
+document.getElementById('lvCheckAll').addEventListener('change',e=>{
+  document.querySelectorAll('#lvBody .row-chk').forEach(c=>c.checked=e.target.checked);
+});
+
+/* ============ CONTEXT MENU ============ */
+function ctxMenu(e, type, id){
+  e.preventDefault();
+  const menu = document.getElementById('ctxMenu');
+  let items = [];
+  if(type==='emp'){
+    items = [
+      {l:'✏️ تعديل', fn:()=>openEmpModal(id)},
+      {l:'📦 أرشفة', fn:()=>archiveEmp(id)},
+      {sep:1},
+      {l:'🗑️ حذف', cls:'danger', fn:()=>deleteEmp(id)},
+    ];
+  }else{
+    items = [
+      {l:'👁️ عرض التفاصيل', fn:()=>viewLv(id)},
+      {l:'✏️ تعديل', fn:()=>openLvModal(id)},
+      {l:'📎 الملفات', fn:()=>viewFiles(id)},
+      {sep:1},
+      {l:'🗑️ حذف', cls:'danger', fn:()=>deleteLv(id)},
+    ];
+  }
+  menu.innerHTML = items.map((it,i)=>it.sep?'<div class="sep"></div>':`<div class="item ${it.cls||''}" data-i="${i}">${it.l}</div>`).join('');
+  menu.style.top = e.clientY+'px';
+  menu.style.left = e.clientX+'px';
+  menu.classList.add('active');
+  menu.querySelectorAll('.item').forEach(el=>el.addEventListener('click',()=>{
+    items[parseInt(el.dataset.i)].fn();
+    menu.classList.remove('active');
+  }));
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ctx-menu')) document.getElementById('ctxMenu').classList.remove('active');
+});
+
+/* ============ UTILITIES ============ */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function debounce(fn,wait){ let t; return function(...a){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a),wait); }; }
+
+/* ============ GLOBAL SEARCH ============ */
+document.getElementById('globalSearch').addEventListener('input', debounce(e=>{
+  const v = e.target.value.trim();
+  if(!v) return;
+  if(State.currentPage==='employees'){ State.emp.search=v; State.emp.page=1; loadEmployees(); }
+  else if(State.currentPage==='leaves'){ State.lv.search=v; State.lv.page=1; loadLeaves(); }
+  else { navigate('employees'); document.getElementById('empSearch').value=v; State.emp.search=v; loadEmployees(); }
+},300));
+
+/* ============ VOICE SEARCH ============ */
+document.getElementById('voiceBtn').addEventListener('click',()=>{
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('البحث الصوتي غير مدعوم','warning'); return; }
+  const r = new SR();
+  r.lang = 'ar-EG';
+  r.onresult = e=>{
+    const text = e.results[0][0].transcript;
+    document.getElementById('globalSearch').value = text;
+    document.getElementById('globalSearch').dispatchEvent(new Event('input'));
+    toast('بحث صوتي: '+text,'info');
+  };
+  r.onerror = ()=>toast('خطأ في البحث الصوتي','error');
+  r.start();
+  toast('🎤 تحدث الآن...','info',2000);
+});
+
+/* ============ BACKUP / PRINT ============ */
+document.getElementById('backupBtn').addEventListener('click', exportDB);
+document.getElementById('printBtn').addEventListener('click', ()=>window.print());
+
+/* ============ KEYBOARD SHORTCUTS ============ */
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='k'){ e.preventDefault(); document.getElementById('globalSearch').focus(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='b'){ e.preventDefault(); exportDB(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='p'){ e.preventDefault(); window.print(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='n'){
+    e.preventDefault();
+    if(State.currentPage==='employees') openEmpModal();
+    else if(State.currentPage==='leaves') openLvModal();
+  }
+  if(e.key==='Escape'){ closeModal(); document.getElementById('ctxMenu').classList.remove('active'); }
+});
+
+/* ============ AUTO BACKUP ============ */
+setInterval(()=>{
+  if(localStorage.getItem('autoBackup')==='1' && State.db){
+    saveDB();
+    console.log('[v0] Auto backup at', new Date().toISOString());
+  }
+}, 60*60*1000);
+
+/* ============ INIT ============ */
+window.addEventListener('load', async ()=>{
+  await initDB();
+});
+
+// Expose to window
+Object.assign(window, {
+  openEmpModal, saveEmp, deleteEmp, archiveEmp,
+  openLvModal, saveLv, deleteLv, viewLv, viewFiles, previewFile, downloadAllFiles, removePendingFile, captureCamera,
+  openSimpleModal, saveSimple, deleteSimple,
+  openUserModal, saveUser, deleteUser, openPasswordModal, changePassword,
+  exportData, importExcel, genReport, exportReport,
+  exportDB, vacuumDB, resetSystem, toggleTheme,
+  closeModal, ctxMenu, bulkAction, restoreItem, purgeItem, emptyTrash, clearAudit, navigate
+});
+</script>
+</body>
+</html>
