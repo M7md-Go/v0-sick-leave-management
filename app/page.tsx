@@ -4,7 +4,7 @@ import { useEffect } from "react"
 
 export default function Page() {
   useEffect(() => {
-    window.location.replace("/sick-leaves.html")
+    window.location.replace("https://m7md-go.github.io/v0-sick-leave-management/public/sick-leaves.html")
   }, [])
 
   return (
@@ -26,7 +26,7 @@ export default function Page() {
         <h1 style={{ fontSize: 28, marginBottom: 8 }}>نظام إدارة الإجازات المرضية</h1>
         <p style={{ opacity: 0.85, marginBottom: 24 }}>جاري تحميل النظام الاحترافي...</p>
         <a
-          href="/sick-leaves.html"
+          href="https://m7md-go.github.io/v0-sick-leave-management/public/sick-leaves.html"
           style={{
             display: "inline-block",
             padding: "12px 28px",
